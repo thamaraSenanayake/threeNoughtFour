@@ -6,71 +6,108 @@ import '../models/trick_model.dart';
 class BotAI {
   final Random _random = Random();
 
-  /// Evaluates hand for bidding power based on J (30), 9 (20), A (11), 10 (10)
+  /// Evaluates hand for bidding power based on 304 card hierarchy & points:
+  /// Jack (30), Nine (20), Ace (11), Ten (10), King (3), Queen (2), 8 (0), 7 (0).
+  /// Total deck has 304 points. Initial hand has 4 cards.
   int evaluateBiddingPotential(List<PlayingCard> hand) {
-    int score = 0;
-    final Map<Suit, int> suitPoints = {
-      Suit.spades: 0,
-      Suit.hearts: 0,
-      Suit.diamonds: 0,
-      Suit.clubs: 0,
-    };
-    final Map<Suit, int> suitCounts = {
-      Suit.spades: 0,
-      Suit.hearts: 0,
-      Suit.diamonds: 0,
-      Suit.clubs: 0,
-    };
+    if (hand.isEmpty) return 0;
 
+    final int totalHandPoints = hand.fold<int>(0, (sum, c) => sum + c.points);
+    final jacks = hand.where((c) => c.rank == Rank.jack).toList();
+    final nines = hand.where((c) => c.rank == Rank.nine).toList();
+    final aces = hand.where((c) => c.rank == Rank.ace).toList();
+    final tens = hand.where((c) => c.rank == Rank.ten).toList();
+
+    // Group cards by suit
+    final Map<Suit, List<PlayingCard>> suitCards = {
+      Suit.spades: [],
+      Suit.hearts: [],
+      Suit.diamonds: [],
+      Suit.clubs: [],
+    };
     for (final card in hand) {
-      suitPoints[card.suit] = (suitPoints[card.suit] ?? 0) + card.points;
-      suitCounts[card.suit] = (suitCounts[card.suit] ?? 0) + 1;
+      suitCards[card.suit]!.add(card);
     }
 
-    // Find best potential trump suit
-    Suit? bestSuit;
-    int maxSuitScore = -1;
-    for (final suit in Suit.values) {
-      final pts = suitPoints[suit] ?? 0;
-      final count = suitCounts[suit] ?? 0;
-      final suitScore = pts + (count * 10);
-      if (suitScore > maxSuitScore) {
-        maxSuitScore = suitScore;
-        bestSuit = suit;
+    int bestTrumpScore = 0;
+
+    for (final entry in suitCards.entries) {
+      final cards = entry.value;
+      if (cards.isEmpty) continue;
+
+      final count = cards.length;
+      final suitPoints = cards.fold<int>(0, (sum, c) => sum + c.points);
+      final hasJack = cards.any((c) => c.rank == Rank.jack);
+      final hasNine = cards.any((c) => c.rank == Rank.nine);
+      final hasAce = cards.any((c) => c.rank == Rank.ace);
+      final hasTen = cards.any((c) => c.rank == Rank.ten);
+
+      int suitTrumpValue = 0;
+
+      if (hasJack && hasNine) {
+        // Jack + Nine in same suit: The two top trumps in 304 (guaranteed 50+ pts & 2 tricks)
+        suitTrumpValue = 210 + (count * 10) + (suitPoints - 50);
+      } else if (hasJack) {
+        // Jack in suit (top trump)
+        suitTrumpValue = 175 + (count * 10) + (suitPoints - 30);
+        if (hasAce || hasTen) suitTrumpValue += 10;
+      } else if (hasNine && (hasAce || hasTen || count >= 3)) {
+        // 9 in suit with backup high cards or suit length
+        suitTrumpValue = 165 + (count * 8) + (suitPoints - 20);
+      } else if (hasAce && hasTen && count >= 2) {
+        // Ace + Ten with suit support
+        suitTrumpValue = 160 + (count * 8) + suitPoints ~/ 2;
+      }
+
+      if (suitTrumpValue > bestTrumpScore) {
+        bestTrumpScore = suitTrumpValue;
       }
     }
 
-    // Calculate maximum safe bid
-    final totalPoints = hand.fold<int>(0, (sum, c) => sum + c.points);
-    final hasJackInBestSuit = hand.any((c) => c.suit == bestSuit && c.rank == Rank.jack);
-    final hasNineInBestSuit = hand.any((c) => c.suit == bestSuit && c.rank == Rank.nine);
-
-    if (hasJackInBestSuit && hasNineInBestSuit) {
-      score = 200 + totalPoints ~/ 2;
-    } else if (hasJackInBestSuit) {
-      score = 170 + totalPoints ~/ 3;
-    } else if (hasNineInBestSuit && totalPoints >= 30) {
-      score = 160;
-    } else {
-      score = 0; // Pass
+    if (bestTrumpScore == 0) {
+      return 0; // Hand is too weak to bid (less than standard minimum)
     }
 
-    return score;
+    // High cards outside the chosen trump suit also win tricks / capture points
+    int maxBid = bestTrumpScore + (totalHandPoints * 0.35).toInt();
+
+    // Bonuses for multiple top honor holdings across suits
+    if (jacks.length >= 2) maxBid += 25; // Multiple Jacks give massive trick control
+    if (nines.length >= 2) maxBid += 15;
+    if (aces.length >= 2) maxBid += 10;
+    if (jacks.length + nines.length >= 3) maxBid += 20;
+
+    // Round to nearest multiple of 10
+    maxBid = ((maxBid + 4) ~/ 10) * 10;
+    return maxBid.clamp(160, 304);
   }
 
-  /// Decide bot's bid given current highest bid
+  /// Decide bot's bid given current highest bid and partner's status
   int? decideBid({
     required List<PlayingCard> hand,
     required int currentHighestBid,
     required int minAllowedBid,
+    bool isPartnerLeading = false,
   }) {
     final potential = evaluateBiddingPotential(hand);
-    if (potential >= minAllowedBid) {
-      // Step up by 10 points or match minimum
-      final nextBid = max(minAllowedBid, ((currentHighestBid ~/ 10) + 1) * 10);
-      if (nextBid <= potential && nextBid <= 250) {
-        return nextBid;
+    if (potential < minAllowedBid) {
+      return null; // Cannot meet minimum required bid
+    }
+
+    if (isPartnerLeading) {
+      // If partner is currently leading the bid:
+      // Only raise if bot has a much stronger hand to upgrade trump (potential >= lead + 30)
+      if (potential >= currentHighestBid + 30 && currentHighestBid <= 200) {
+        final nextBid = max(minAllowedBid, ((currentHighestBid ~/ 10) + 1) * 10);
+        if (nextBid <= potential) return nextBid;
       }
+      return null; // Partner already leads, so pass to support partner
+    }
+
+    // Opponent is leading or no bid yet placed:
+    final nextBid = max(minAllowedBid, ((currentHighestBid ~/ 10) + 1) * 10);
+    if (nextBid <= potential && nextBid <= 304) {
+      return nextBid;
     }
     return null; // Pass
   }
@@ -79,17 +116,41 @@ class BotAI {
   PlayingCard chooseTrumpCard(List<PlayingCard> hand) {
     if (hand.isEmpty) throw ArgumentError('Hand is empty');
 
-    // Prefer Jack, then 9, then highest rank in the suit with most cards/points
+    // Group cards by suit and find suit with best strength
+    Suit? bestSuit;
+    int maxSuitScore = -1;
+
+    for (final suit in Suit.values) {
+      final suitCards = hand.where((c) => c.suit == suit).toList();
+      if (suitCards.isEmpty) continue;
+
+      int score = 0;
+      if (suitCards.any((c) => c.rank == Rank.jack)) score += 100;
+      if (suitCards.any((c) => c.rank == Rank.nine)) score += 60;
+      if (suitCards.any((c) => c.rank == Rank.ace)) score += 30;
+      if (suitCards.any((c) => c.rank == Rank.ten)) score += 20;
+      score += suitCards.length * 15;
+
+      if (score > maxSuitScore) {
+        maxSuitScore = score;
+        bestSuit = suit;
+      }
+    }
+
+    final targetSuitCards = hand.where((c) => c.suit == bestSuit).toList();
+    if (targetSuitCards.isNotEmpty) {
+      // Pick highest ranking card in that suit
+      targetSuitCards.sort((a, b) => b.hierarchyRank.compareTo(a.hierarchyRank));
+      return targetSuitCards.first;
+    }
+
+    // Fallback: pick Jack or 9
     final jacks = hand.where((c) => c.rank == Rank.jack).toList();
     if (jacks.isNotEmpty) return jacks.first;
 
     final nines = hand.where((c) => c.rank == Rank.nine).toList();
     if (nines.isNotEmpty) return nines.first;
 
-    final aces = hand.where((c) => c.rank == Rank.ace).toList();
-    if (aces.isNotEmpty) return aces.first;
-
-    // Highest rank card
     final sorted = List<PlayingCard>.from(hand)
       ..sort((a, b) => b.hierarchyRank.compareTo(a.hierarchyRank));
     return sorted.first;
@@ -108,13 +169,11 @@ class BotAI {
 
     // If leading the trick
     if (currentTrick.playedCards.isEmpty) {
-      // If we hold top Jack / Nine / Ace of non-trump or trump (if open), lead it to win trick
       final highCards = validCards.where((c) => c.rank == Rank.jack || c.rank == Rank.nine || c.rank == Rank.ace).toList();
       if (highCards.isNotEmpty) {
         highCards.sort((a, b) => b.hierarchyRank.compareTo(a.hierarchyRank));
         return highCards.first;
       }
-      // Otherwise lead a low card (7 or 8)
       final lowCards = validCards.where((c) => c.points == 0).toList();
       if (lowCards.isNotEmpty) {
         return lowCards[_random.nextInt(lowCards.length)];
@@ -129,48 +188,40 @@ class BotAI {
       final followCards = validCards.where((c) => c.suit == leadSuit).toList();
       followCards.sort((a, b) => b.hierarchyRank.compareTo(a.hierarchyRank));
 
-      // Check current winning card in trick
       final currentWinning = _getWinningCard(currentTrick.playedCards, trumpSuit, isTrumpOpen);
       final partnerPlayedWinning = currentWinning != null && currentWinning.player == botPosition.partner;
 
       if (partnerPlayedWinning) {
-        // Partner is currently winning: feed points (Jack, 9, 10, Ace) or discard low
         final pointCards = followCards.where((c) => c.points > 0).toList();
         if (pointCards.isNotEmpty) {
           pointCards.sort((a, b) => b.points.compareTo(a.points));
-          return pointCards.last; // Feed moderate/high points
+          return pointCards.last;
         }
-        return followCards.last; // Lowest
+        return followCards.last;
       } else {
-        // Partner is NOT winning: try to beat current winning card if possible
         if (currentWinning != null && currentWinning.card.suit == leadSuit) {
           final winningFollowCards = followCards
               .where((c) => c.hierarchyRank > currentWinning.card.hierarchyRank)
               .toList();
           if (winningFollowCards.isNotEmpty) {
-            // Play highest winning card
             return winningFollowCards.first;
           }
         }
-        // Cannot win or partner winning: play lowest card
         return followCards.last;
       }
     } else {
-      // Cannot follow suit (void in leadSuit)
       if (isTrumpOpen && trumpSuit != null) {
         final trumpCards = validCards.where((c) => c.suit == trumpSuit).toList();
         if (trumpCards.isNotEmpty) {
           trumpCards.sort((a, b) => b.hierarchyRank.compareTo(a.hierarchyRank));
-          // Trump if partner isn't already winning
           final currentWinning = _getWinningCard(currentTrick.playedCards, trumpSuit, isTrumpOpen);
           final partnerWinning = currentWinning != null && currentWinning.player == botPosition.partner;
           if (!partnerWinning) {
-            return trumpCards.first; // Trump high
+            return trumpCards.first;
           }
         }
       }
 
-      // Discard lowest value card
       final sortedByPoints = List<PlayingCard>.from(validCards)
         ..sort((a, b) => a.points.compareTo(b.points));
       return sortedByPoints.first;

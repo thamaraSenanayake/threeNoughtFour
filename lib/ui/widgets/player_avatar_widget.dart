@@ -26,15 +26,15 @@ class PlayerAvatarWidget extends StatelessWidget {
     switch (player.position) {
       case PlayerPosition.north:
         avatarBorderColor = Colors.cyan;
-        avatarIcon = Icons.smart_toy;
+        avatarIcon = Icons.face;
         break;
       case PlayerPosition.west:
         avatarBorderColor = const Color(0xFFF43F5E);
-        avatarIcon = Icons.sports_kabaddi;
+        avatarIcon = Icons.face_3;
         break;
       case PlayerPosition.east:
         avatarBorderColor = Colors.purpleAccent;
-        avatarIcon = Icons.psychology;
+        avatarIcon = Icons.face_6;
         break;
       case PlayerPosition.south:
         avatarBorderColor = AppTheme.gold;
@@ -49,7 +49,7 @@ class PlayerAvatarWidget extends StatelessWidget {
         if (speechBubbleText != null && speechBubbleText!.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -161,12 +161,12 @@ class PlayerAvatarWidget extends StatelessWidget {
         // Position / Ally note
         Text(
           player.position == PlayerPosition.north
-              ? 'North • Ally'
+              ? 'Partner (N)'
               : player.position == PlayerPosition.west
-                  ? '(West)'
+                  ? 'Rival (W)'
                   : player.position == PlayerPosition.east
-                      ? '(East)'
-                      : 'You',
+                      ? 'Rival (E)'
+                      : 'You (S)',
           style: TextStyle(
             color: (player.position == PlayerPosition.north ||
                     player.position == PlayerPosition.south)

@@ -8,6 +8,7 @@ class BiddingModal extends StatefulWidget {
   final int currentHighestBid;
   final PlayerPosition? currentLeadBidder;
   final List<PlayingCard> firstBatchHand;
+  final bool isFinalTrumpSelection;
   final Function(int bid, PlayingCard trumpCard) onPlaceBidAndSetTrump;
   final VoidCallback onPass;
 
@@ -16,6 +17,7 @@ class BiddingModal extends StatefulWidget {
     required this.currentHighestBid,
     required this.currentLeadBidder,
     required this.firstBatchHand,
+    this.isFinalTrumpSelection = false,
     required this.onPlaceBidAndSetTrump,
     required this.onPass,
   });
@@ -113,13 +115,15 @@ class _BiddingModalState extends State<BiddingModal> {
                 ),
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('👑 ', style: TextStyle(fontSize: 16)),
+                        const Text('👑 ', style: TextStyle(fontSize: 16)),
                         Text(
-                          'Bidding Round',
-                          style: TextStyle(
+                          widget.isFinalTrumpSelection
+                              ? 'Set Hidden Trump'
+                              : 'Bidding Round',
+                          style: const TextStyle(
                             color: AppTheme.goldLight,
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -144,9 +148,11 @@ class _BiddingModalState extends State<BiddingModal> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
-                                'Current Lead: ',
-                                style: TextStyle(
+                              Text(
+                                widget.isFinalTrumpSelection
+                                    ? 'Winning Target: '
+                                    : 'Current Lead: ',
+                                style: const TextStyle(
                                   color: Color(0xFF34D399),
                                   fontSize: 10,
                                 ),
@@ -159,7 +165,7 @@ class _BiddingModalState extends State<BiddingModal> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (widget.currentLeadBidder != null) ...[
+                              if (widget.currentLeadBidder != null && !widget.isFinalTrumpSelection) ...[
                                 const Text(' • ',
                                     style: TextStyle(
                                         color: Colors.white54, fontSize: 10)),
@@ -181,161 +187,162 @@ class _BiddingModalState extends State<BiddingModal> {
                 ),
               ),
 
-              // Stepper Section
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    // Stepper Dial
-                    Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const RadialGradient(
-                          colors: [Color(0xFF065F46), Color(0xFF021E17)],
-                        ),
-                        border: Border.all(
-                          color: AppTheme.gold.withOpacity(0.5),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.gold.withOpacity(0.25),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          )
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Minus Button
-                          Positioned(
-                            left: 4,
-                            child: IconButton(
-                              onPressed: _selectedBid > minBid ? _decreaseBid : null,
-                              icon: const Icon(Icons.remove_circle),
-                              color: AppTheme.gold,
-                              disabledColor: Colors.white24,
-                              iconSize: 28,
-                            ),
+              // Stepper Section (Only shown during bidding)
+              if (!widget.isFinalTrumpSelection)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      // Stepper Dial
+                      Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const RadialGradient(
+                            colors: [Color(0xFF065F46), Color(0xFF021E17)],
                           ),
-                          // Center Bid Value
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'YOUR BID',
-                                style: TextStyle(
-                                  color: Color(0xFF6EE7B7),
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
+                          border: Border.all(
+                            color: AppTheme.gold.withOpacity(0.5),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.gold.withOpacity(0.25),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            )
+                          ],
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Minus Button
+                            Positioned(
+                              left: 4,
+                              child: IconButton(
+                                onPressed: _selectedBid > minBid ? _decreaseBid : null,
+                                icon: const Icon(Icons.remove_circle),
+                                color: AppTheme.gold,
+                                disabledColor: Colors.white24,
+                                iconSize: 28,
                               ),
-                              Text(
-                                '$_selectedBid',
-                                style: const TextStyle(
-                                  color: AppTheme.gold,
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const Text(
-                                'POINTS',
-                                style: TextStyle(
-                                  color: Color(0xFFFDE68A),
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: const Color(0x88047857),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'Min: $minBid • Max: 304',
-                                  style: const TextStyle(
-                                    color: Color(0xFFA7F3D0),
-                                    fontSize: 7.5,
+                            ),
+                            // Center Bid Value
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'YOUR BID',
+                                  style: TextStyle(
+                                    color: Color(0xFF6EE7B7),
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
                                   ),
                                 ),
+                                Text(
+                                  '$_selectedBid',
+                                  style: const TextStyle(
+                                    color: AppTheme.gold,
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                const Text(
+                                  'POINTS',
+                                  style: TextStyle(
+                                    color: Color(0xFFFDE68A),
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0x88047857),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Min: $minBid • Max: 304',
+                                    style: const TextStyle(
+                                      color: Color(0xFFA7F3D0),
+                                      fontSize: 7.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Plus Button
+                            Positioned(
+                              right: 4,
+                              child: IconButton(
+                                onPressed: _selectedBid < 304 ? _increaseBid : null,
+                                icon: const Icon(Icons.add_circle),
+                                color: AppTheme.gold,
+                                disabledColor: Colors.white24,
+                                iconSize: 28,
                               ),
-                            ],
-                          ),
-                          // Plus Button
-                          Positioned(
-                            right: 4,
-                            child: IconButton(
-                              onPressed: _selectedBid < 304 ? _increaseBid : null,
-                              icon: const Icon(Icons.add_circle),
-                              color: AppTheme.gold,
-                              disabledColor: Colors.white24,
-                              iconSize: 28,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    // Quick Bid Chips
-                    const Text(
-                      'QUICK BID JUMPS',
-                      style: TextStyle(
-                        color: Color(0x996EE7B7),
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                      // Quick Bid Chips
+                      const Text(
+                        'QUICK BID JUMPS',
+                        style: TextStyle(
+                          color: Color(0x996EE7B7),
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      alignment: WrapAlignment.center,
-                      children: [170, 180, 190, 200, 304].map((bid) {
-                        final isCapot = bid == 304;
-                        final isSelected = _selectedBid == bid;
-                        final isEnabled = bid >= minBid;
-                        return ChoiceChip(
-                          label: Text(
-                            isCapot ? 'Capot (304)' : '$bid',
-                            style: TextStyle(
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.center,
+                        children: [170, 180, 190, 200, 304].map((bid) {
+                          final isCapot = bid == 304;
+                          final isSelected = _selectedBid == bid;
+                          final isEnabled = bid >= minBid;
+                          return ChoiceChip(
+                            label: Text(
+                              isCapot ? 'Capot (304)' : '$bid',
+                              style: TextStyle(
+                                color: isSelected
+                                    ? const Color(0xFF062D24)
+                                    : isEnabled
+                                        ? Colors.white
+                                        : Colors.white30,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: AppTheme.gold,
+                            backgroundColor: const Color(0xFF042E24),
+                            side: BorderSide(
                               color: isSelected
-                                  ? const Color(0xFF062D24)
+                                  ? AppTheme.gold
                                   : isEnabled
-                                      ? Colors.white
-                                      : Colors.white30,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10.5,
+                                      ? const Color(0xFF059669)
+                                      : Colors.white12,
                             ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: AppTheme.gold,
-                          backgroundColor: const Color(0xFF042E24),
-                          side: BorderSide(
-                            color: isSelected
-                                ? AppTheme.gold
-                                : isEnabled
-                                    ? const Color(0xFF059669)
-                                    : Colors.white12,
-                          ),
-                          onSelected: isEnabled ? (_) => _setBid(bid) : null,
-                        );
-                      }).toList(),
-                    ),
-                  ],
+                            onSelected: isEnabled ? (_) => _setBid(bid) : null,
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
               // Trump Selection Section
               Container(
@@ -513,35 +520,37 @@ class _BiddingModalState extends State<BiddingModal> {
                 ),
                 child: Row(
                   children: [
-                    // Pass Button
-                    Expanded(
-                      flex: 4,
-                      child: OutlinedButton(
-                        onPressed: widget.onPass,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: const BorderSide(color: Colors.white30),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    // Pass Button (Only if not in final trump confirmation)
+                    if (!widget.isFinalTrumpSelection) ...[
+                      Expanded(
+                        flex: 4,
+                        child: OutlinedButton(
+                          onPressed: widget.onPass,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white70,
+                            side: const BorderSide(color: Colors.white30),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.close, size: 14),
+                              SizedBox(width: 4),
+                              Text('Pass Bid',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.close, size: 14),
-                            SizedBox(width: 4),
-                            Text('Pass Bid',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
+                      const SizedBox(width: 10),
+                    ],
 
-                    // Bid & Set Trump Button
+                    // Bid / Set Trump Button
                     Expanded(
-                      flex: 6,
+                      flex: widget.isFinalTrumpSelection ? 10 : 6,
                       child: ElevatedButton(
                         onPressed: _selectedTrumpCard != null
                             ? () {
@@ -561,7 +570,9 @@ class _BiddingModalState extends State<BiddingModal> {
                           ),
                         ),
                         child: Text(
-                          'Bid $_selectedBid & Set Trump ➔',
+                          widget.isFinalTrumpSelection
+                              ? 'Set Trump & Deal Cards ➔'
+                              : 'Bid $_selectedBid ➔',
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 12,

@@ -104,6 +104,7 @@ class PlayingCardWidget extends StatelessWidget {
                   : AppTheme.cardShadow,
         ),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),

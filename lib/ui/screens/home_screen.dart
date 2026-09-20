@@ -280,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          _buildFeatureChip('🤖 3 Autonomous Bots'),
+                          _buildFeatureChip('👥 Kasun, Kamal & Sunil'),
                           _buildFeatureChip('🃏 32-Card Deck (304 Pts)'),
                           _buildFeatureChip('🔒 Secret Hidden Trump'),
                           _buildFeatureChip('🎯 First to 6 Marks'),

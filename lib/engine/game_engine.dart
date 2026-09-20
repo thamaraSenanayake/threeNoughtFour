@@ -55,25 +55,25 @@ class GameEngine {
     players = [
       Player(
         id: 'p_south',
-        name: userPlayerName,
+        name: userPlayerName.isNotEmpty ? userPlayerName : 'You',
         position: PlayerPosition.south,
         isBot: false,
       ),
       Player(
         id: 'p_west',
-        name: 'Bot 1',
+        name: 'Kamal',
         position: PlayerPosition.west,
         isBot: true,
       ),
       Player(
         id: 'p_north',
-        name: 'Partner Bot',
+        name: 'Kasun',
         position: PlayerPosition.north,
         isBot: true,
       ),
       Player(
         id: 'p_east',
-        name: 'Bot 2',
+        name: 'Sunil',
         position: PlayerPosition.east,
         isBot: true,
       ),
@@ -175,7 +175,7 @@ class GameEngine {
     }
 
     if (consecutivePasses >= 4 && highestBidder == null) {
-      // All passed: Default to dealer or South takes 160
+      // All passed: Default to South takes 160
       highestBidder = PlayerPosition.south;
       targetBid = 160;
       currentPhase = GamePhase.trumpSelection;
@@ -191,14 +191,35 @@ class GameEngine {
     return true;
   }
 
+  /// Advances a single bot's bid during bidding
+  int? advanceSingleBid() {
+    if (currentPhase != GamePhase.bidding || currentBidderTurn == PlayerPosition.south) {
+      return null;
+    }
+
+    final bot = getPlayer(currentBidderTurn);
+    final isPartnerLeading = highestBidder != null && getPlayer(highestBidder!).team == bot.team;
+    final decidedBid = botAI.decideBid(
+      hand: bot.hand,
+      currentHighestBid: targetBid,
+      minAllowedBid: highestBidder == null ? 160 : targetBid + 10,
+      isPartnerLeading: isPartnerLeading,
+    );
+
+    handleBidding(playerPos: currentBidderTurn, bid: decidedBid);
+    return decidedBid;
+  }
+
   /// Automatically run bot bids until it's the human's turn or bidding finishes
   void advanceBotBiddingIfNeeded() {
     while (currentPhase == GamePhase.bidding && currentBidderTurn != PlayerPosition.south) {
       final bot = getPlayer(currentBidderTurn);
+      final isPartnerLeading = highestBidder != null && getPlayer(highestBidder!).team == bot.team;
       final decidedBid = botAI.decideBid(
         hand: bot.hand,
         currentHighestBid: targetBid,
         minAllowedBid: highestBidder == null ? 160 : targetBid + 10,
+        isPartnerLeading: isPartnerLeading,
       );
       handleBidding(playerPos: currentBidderTurn, bid: decidedBid);
     }

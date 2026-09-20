@@ -54,34 +54,39 @@ class _TableScreenState extends State<TableScreen> {
     if (!mounted) return;
 
     if (_engine.currentPhase == GamePhase.bidding) {
-      if (_engine.currentBidderTurn == PlayerPosition.south) {
+      if (_engine.currentBidderTurn == PlayerPosition.south && !_engine.userPlayer.hasPassed) {
         // Show Bidding Modal for User
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showBiddingModal();
         });
-      } else {
-        // Advance bot bids
+      } else if (_engine.currentBidderTurn != PlayerPosition.south) {
+        // Advance single bot bid with visual animation
         _botTurnTimer?.cancel();
         _botTurnTimer = Timer(const Duration(milliseconds: 700), () {
           if (!mounted) return;
-          setState(() {
-            _engine.advanceBotBiddingIfNeeded();
+          final bid = _engine.advanceSingleBid();
+          if (bid != null) {
             _soundService.playBid();
-          });
+          } else {
+            _soundService.playPass();
+          }
+          setState(() {});
           _checkPhaseTransitions();
         });
       }
     } else if (_engine.currentPhase == GamePhase.trumpSelection) {
       if (_engine.highestBidder == PlayerPosition.south) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showBiddingModal();
+          _showBiddingModal(isFinalTrumpSelection: true);
         });
       } else {
         _botTurnTimer?.cancel();
-        _botTurnTimer = Timer(const Duration(milliseconds: 600), () {
+        _botTurnTimer = Timer(const Duration(milliseconds: 800), () {
           if (!mounted) return;
+          final bot = _engine.getPlayer(_engine.highestBidder!);
+          final trumpChoice = _engine.botAI.chooseTrumpCard(bot.hand);
           setState(() {
-            _engine.advanceBotBiddingIfNeeded();
+            _engine.setTrumpCard(trumpChoice);
             _soundService.playCardDeal();
           });
           _checkPhaseTransitions();
@@ -122,7 +127,7 @@ class _TableScreenState extends State<TableScreen> {
     }
   }
 
-  void _showBiddingModal() {
+  void _showBiddingModal({bool isFinalTrumpSelection = false}) {
     if (!mounted) return;
     showDialog(
       context: context,
@@ -131,18 +136,23 @@ class _TableScreenState extends State<TableScreen> {
         currentHighestBid: _engine.targetBid,
         currentLeadBidder: _engine.highestBidder,
         firstBatchHand: _engine.userPlayer.hand.take(4).toList(),
+        isFinalTrumpSelection: isFinalTrumpSelection,
         onPlaceBidAndSetTrump: (bid, trumpCard) {
           _soundService.playBid();
           Navigator.of(ctx).pop();
           setState(() {
-            _engine.handleBidding(
-              playerPos: PlayerPosition.south,
-              bid: bid,
-            );
-            if (_engine.currentPhase == GamePhase.trumpSelection ||
-                _engine.highestBidder == PlayerPosition.south) {
+            if (isFinalTrumpSelection) {
               _engine.setTrumpCard(trumpCard);
               _soundService.playCardDeal();
+            } else {
+              _engine.handleBidding(
+                playerPos: PlayerPosition.south,
+                bid: bid,
+              );
+              if (_engine.currentPhase == GamePhase.trumpSelection) {
+                _engine.setTrumpCard(trumpCard);
+                _soundService.playCardDeal();
+              }
             }
           });
           _checkPhaseTransitions();
@@ -626,12 +636,16 @@ class _TableScreenState extends State<TableScreen> {
 
                     // Horizontal Fan of Player's Cards
                     SizedBox(
-                      height: 100,
+                      height: 116,
                       child: Center(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          padding: const EdgeInsets.only(
+                              top: 14, bottom: 2, left: 8, right: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: _engine.userPlayer.hand.map((card) {
                               final isPlayable = _engine.currentPhase ==
                                       GamePhase.playingTrick &&

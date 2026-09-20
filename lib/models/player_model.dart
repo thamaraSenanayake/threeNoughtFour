@@ -2,9 +2,9 @@ import 'card_model.dart';
 
 enum PlayerPosition {
   south('You (South)', 'S'),
-  west('Bot 1 (West)', 'W'),
-  north('Partner Bot (North)', 'N'),
-  east('Bot 2 (East)', 'E');
+  west('Kamal (West)', 'W'),
+  north('Kasun (North)', 'N'),
+  east('Sunil (East)', 'E');
 
   final String displayName;
   final String shortCode;
@@ -25,8 +25,8 @@ enum PlayerPosition {
 }
 
 enum Team {
-  teamUserPartner('You & Partner', 'team_ns'),
-  teamOpponents('Opponents (E/W)', 'team_ew');
+  teamUserPartner('You & Kasun', 'team_ns'),
+  teamOpponents('Kamal & Sunil', 'team_ew');
 
   final String displayName;
   final String code;

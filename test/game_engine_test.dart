@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:three_note_four/engine/bot_ai.dart';
 import 'package:three_note_four/engine/game_engine.dart';
 import 'package:three_note_four/models/card_model.dart';
 import 'package:three_note_four/models/player_model.dart';
@@ -8,9 +9,11 @@ import 'package:three_note_four/models/game_state.dart';
 void main() {
   group('304 Solo Play Engine Tests', () {
     late GameEngine engine;
+    late BotAI botAI;
 
     setUp(() {
       engine = GameEngine();
+      botAI = BotAI();
     });
 
     test('initDeck generates 32 cards with total 304 points', () {
@@ -38,6 +41,65 @@ void main() {
       }
       expect(engine.deck.length, 16);
       expect(engine.currentPhase, GamePhase.bidding);
+    });
+
+    test('BotAI evaluateBiddingPotential calculates realistic bids for strong hands', () {
+      // Hand with Jack (30) and 9 (20) in Spades -> Top 2 trumps in 304!
+      final strongTrumpHand = [
+        const PlayingCard(suit: Suit.spades, rank: Rank.jack),
+        const PlayingCard(suit: Suit.spades, rank: Rank.nine),
+        const PlayingCard(suit: Suit.hearts, rank: Rank.ace),
+        const PlayingCard(suit: Suit.diamonds, rank: Rank.seven),
+      ];
+      final strongPotential = botAI.evaluateBiddingPotential(strongTrumpHand);
+      expect(strongPotential, greaterThanOrEqualTo(230));
+
+      // Hand with Jack (30) and Ace (11)
+      final jackHand = [
+        const PlayingCard(suit: Suit.hearts, rank: Rank.jack),
+        const PlayingCard(suit: Suit.hearts, rank: Rank.eight),
+        const PlayingCard(suit: Suit.spades, rank: Rank.ace),
+        const PlayingCard(suit: Suit.diamonds, rank: Rank.king),
+      ];
+      final jackPotential = botAI.evaluateBiddingPotential(jackHand);
+      expect(jackPotential, greaterThanOrEqualTo(200));
+
+      // Weak hand: 8s and 7s
+      final weakHand = [
+        const PlayingCard(suit: Suit.hearts, rank: Rank.eight),
+        const PlayingCard(suit: Suit.hearts, rank: Rank.seven),
+        const PlayingCard(suit: Suit.spades, rank: Rank.eight),
+        const PlayingCard(suit: Suit.diamonds, rank: Rank.queen),
+      ];
+      final weakPotential = botAI.evaluateBiddingPotential(weakHand);
+      expect(weakPotential, 0); // Passes
+    });
+
+    test('Bot outbids opponent when holding stronger hand than current bid', () {
+      final strongHand = [
+        const PlayingCard(suit: Suit.spades, rank: Rank.jack),
+        const PlayingCard(suit: Suit.spades, rank: Rank.nine),
+        const PlayingCard(suit: Suit.hearts, rank: Rank.ace),
+        const PlayingCard(suit: Suit.diamonds, rank: Rank.seven),
+      ];
+
+      // Opponent bid 170. Bot can and will outbid with 180!
+      final decidedBid = botAI.decideBid(
+        hand: strongHand,
+        currentHighestBid: 170,
+        minAllowedBid: 180,
+        isPartnerLeading: false,
+      );
+      expect(decidedBid, 180);
+
+      // Opponent bid 200. Bot can outbid with 210!
+      final higherBid = botAI.decideBid(
+        hand: strongHand,
+        currentHighestBid: 200,
+        minAllowedBid: 210,
+        isPartnerLeading: false,
+      );
+      expect(higherBid, 210);
     });
 
     test('handleBidding and setTrumpCard transitions to trick play with 8 cards dealt', () {

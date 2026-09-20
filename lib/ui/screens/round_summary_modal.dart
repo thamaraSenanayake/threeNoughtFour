@@ -120,7 +120,7 @@ class RoundSummaryModal extends StatelessWidget {
 
                 // Subtitle
                 Text(
-                  'You & Partner scored ${summary.teamPoints} points (Target was ${summary.targetBid})',
+                  'You & Kasun scored ${summary.teamPoints} points (Target was ${summary.targetBid})',
                   style: const TextStyle(
                     color: Color(0xFFD1FAE5),
                     fontSize: 11,
@@ -335,7 +335,7 @@ class RoundSummaryModal extends StatelessWidget {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                'YOU & ALLY',
+                                'YOU & KASUN',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   color: AppTheme.goldLight,
@@ -347,7 +347,7 @@ class RoundSummaryModal extends StatelessWidget {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                'OPPONENTS',
+                                'KAMAL & SUNIL',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   color: Color(0xFF94A3B8),
